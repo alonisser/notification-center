@@ -1,6 +1,8 @@
 import sys
 import webapp2
 import json
+import os
+import jinja2
 import datetime
 import logging
 
@@ -12,6 +14,11 @@ from google.appengine.api import urlfetch
 from google.appengine.api import mail
 
 from feedparser import feedparser
+
+JINJA_ENVIRONMENT = jinja2.Environment(
+    loader=jinja2.FileSystemLoader(os.path.dirname(__file__)),
+    extensions=['jinja2.ext.autoescape'],
+    autoescape=True)
 
 class APIHandler(webapp2.RequestHandler):
 
@@ -157,11 +164,21 @@ class PollRssHandler(webapp2.RequestHandler):
             subtitle = "%s\n\n" % feed.feed.subtitle
         except:
             subtitle = ''
+        # TODO: currenty hardcoded template later change this to something more dynamical
+
+        email_template = JINJA_ENVIRONMENT.get_template('templates/default.html')
+        email_values = {
+            'to_send': to_send,
+            'subtitle': subtitle,
+
+        }
+        email_html = email_template.render(email_values)
         mail.send_mail(sender="Hasadna Notification Center <%s>" % sender,
                        to=subscription.user.email(),
                        subject="Updates from: %s" % feed.feed.title,
                        body= subtitle + "\n---\n".join("\n".join([x.title,x.description,x.link]) for x in to_send),
-                       html="<h2>%s</h2>" % subtitle + "<hr/>".join("<br/>".join(["<b>"+x.title+"</b>",x.description,x.link]) for x in to_send)
+                       # html="<h2>%s</h2>" % subtitle + "<hr/>".join("<br/>".join(["<b>"+x.title+"</b>",x.description,x.link]) for x in to_send)
+                       html = email_html
                        )
 
     def get(self):
